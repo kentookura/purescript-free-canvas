@@ -2,16 +2,33 @@ module Test.Main where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
+import Effect (Effect)
 import Data.Maybe (fromJust)
-import Graphics.Canvas (CANVAS, getCanvasElementById, getContext2D)
-import Graphics.Canvas.Free (putImageData, getImageData, stroke, closePath, lineTo,
-                            moveTo, beginPath, translate, strokeText, measureText,
-                            setFont, rotate, scale, setStrokeStyle, setShadowColor,
-                            setShadowOffsetY, setShadowOffsetX, setLineWidth, runGraphics)
+import Graphics.Canvas (getCanvasElementById, getContext2D)
+import Graphics.Canvas.Free
+  ( putImageData
+  , getImageData
+  , stroke
+  , closePath
+  , lineTo
+  , moveTo
+  , beginPath
+  , translate
+  , strokeText
+  , measureText
+  , setFont
+  , rotate
+  , scale
+  , setStrokeStyle
+  , setShadowColor
+  , setShadowOffsetY
+  , setShadowOffsetX
+  , setLineWidth
+  , runGraphics
+  )
 import Partial.Unsafe (unsafePartial)
 
-main :: Eff (canvas :: CANVAS) Unit
+main :: Effect Unit
 main = do
   canvas <- getCanvasElementById "canvas"
   context <- getContext2D (unsafePartial (fromJust canvas))

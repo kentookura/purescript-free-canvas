@@ -51,7 +51,7 @@ module Graphics.Canvas.Free
   ) where
 
 import Prelude
-import Control.Monad.Eff (Eff)
+import Effect (Effect)
 import Control.Monad.Free.Trans (FreeT, liftFreeT, hoistFreeT, runFreeT)
 import Data.Identity (Identity)
 import Data.Newtype (unwrap)
@@ -190,13 +190,13 @@ transform :: forall m. Monad m => Canvas.Transform -> GraphicsT m Unit
 transform tx = liftGraphics $ Transform tx unit
 
 textAlign :: forall m. Monad m => GraphicsT m Canvas.TextAlign
-textAlign = liftGraphics $ TextAlign id
+textAlign = liftGraphics $ TextAlign identity
 
 setTextAlign :: forall m. Monad m => Canvas.TextAlign -> GraphicsT m Unit
 setTextAlign ta = liftGraphics $ SetTextAlign ta unit
 
 font :: forall m. Monad m => GraphicsT m String
-font = liftGraphics $ Font id
+font = liftGraphics $ Font identity
 
 setFont :: forall m. Monad m => String -> GraphicsT m Unit
 setFont f = liftGraphics $ SetFont f unit
@@ -208,7 +208,7 @@ strokeText :: forall m. Monad m => String -> Number -> Number -> GraphicsT m Uni
 strokeText s x y = liftGraphics $ StrokeText s x y unit
 
 measureText :: forall m. Monad m => String -> GraphicsT m Canvas.TextMetrics
-measureText s = liftGraphics $ MeasureText s id
+measureText s = liftGraphics $ MeasureText s identity
 
 save :: forall m. Monad m => GraphicsT m Unit
 save = liftGraphics $ Save unit
@@ -217,7 +217,7 @@ restore :: forall m. Monad m => GraphicsT m Unit
 restore = liftGraphics $ Restore unit
 
 getImageData :: forall m. Monad m => Number -> Number -> Number -> Number -> GraphicsT m Canvas.ImageData
-getImageData x y w h = liftGraphics $ GetImageData x y w h id
+getImageData x y w h = liftGraphics $ GetImageData x y w h identity
 
 putImageData :: forall m. Monad m => Canvas.ImageData -> Number -> Number -> GraphicsT m Unit
 putImageData d x y = liftGraphics $ PutImageData d x y unit
@@ -226,10 +226,10 @@ putImageDataFull :: forall m. Monad m => Canvas.ImageData -> Number -> Number ->
 putImageDataFull d x y dx dy dw dh = liftGraphics $ PutImageDataFull d x y dx dy dw dh unit
 
 createImageData :: forall m. Monad m => Number -> Number -> GraphicsT m Canvas.ImageData
-createImageData w h = liftGraphics $ CreateImageData w h id
+createImageData w h = liftGraphics $ CreateImageData w h identity
 
 createImageDataCopy :: forall m. Monad m => Canvas.ImageData -> GraphicsT m Canvas.ImageData
-createImageDataCopy d = liftGraphics $ CreateImageDataCopy d id
+createImageDataCopy d = liftGraphics $ CreateImageDataCopy d identity
 
 drawImage :: forall m. Monad m => Canvas.CanvasImageSource -> Number -> Number -> GraphicsT m Unit
 drawImage src x y = liftGraphics $ DrawImage src x y unit
@@ -244,34 +244,36 @@ runGraphics
   :: forall eff
    . Canvas.Context2D
   -> Graphics
-  ~> Eff (canvas :: Canvas.CANVAS | eff)
+       ~> Effect
 runGraphics ctx = runFreeT (interpretGraphics ctx) <<< hoistFreeT (pure <<< unwrap)
 
-runGraphicsT
-  :: forall eff
-   . Canvas.Context2D
-  -> GraphicsT (Eff (canvas :: Canvas.CANVAS | eff))
-  ~> Eff (canvas :: Canvas.CANVAS | eff)
+--runGraphicsT
+--  :: forall eff
+--   . Canvas.Context2D
+--  -> GraphicsT (Effect eff)
+--  -> Effect eff
+runGraphicsT :: forall t. Canvas.Context2D -> FreeT GraphicsF Effect t -> Effect t
 runGraphicsT ctx = runFreeT (interpretGraphics ctx)
 
-interpretGraphics :: forall eff. Canvas.Context2D -> GraphicsF ~> Eff (canvas :: Canvas.CANVAS | eff)
-interpretGraphics ctx = go where
+interpretGraphics :: forall eff. Canvas.Context2D -> GraphicsF ~> Effect
+interpretGraphics ctx = go
+  where
   go (SetLineWidth w a) =
-    const a <$> Canvas.setLineWidth w ctx
+    const a <$> Canvas.setLineWidth ctx w
   go (SetFillStyle s a) =
-    const a <$> Canvas.setFillStyle s ctx
+    const a <$> Canvas.setFillStyle ctx s
   go (SetStrokeStyle s a) =
-    const a <$> Canvas.setStrokeStyle s ctx
+    const a <$> Canvas.setStrokeStyle ctx s
   go (SetShadowColor c a) =
-    const a <$> Canvas.setShadowColor c ctx
+    const a <$> Canvas.setShadowColor ctx c
   go (SetShadowBlur n a) =
-    const a <$> Canvas.setShadowBlur n ctx
+    const a <$> Canvas.setShadowBlur ctx n
   go (SetShadowOffsetX n a) =
-    const a <$> Canvas.setShadowOffsetX n ctx
+    const a <$> Canvas.setShadowOffsetX ctx n
   go (SetShadowOffsetY n a) =
-    const a <$> Canvas.setShadowOffsetY n ctx
+    const a <$> Canvas.setShadowOffsetY ctx n
   go (SetLineCap lc a) =
-    const a <$> Canvas.setLineCap lc ctx
+    const a <$> Canvas.setLineCap ctx lc
   go (SetComposite c a) =
     const a <$> Canvas.setGlobalCompositeOperation ctx c
   go (SetAlpha s a) =
@@ -301,13 +303,13 @@ interpretGraphics ctx = go where
   go (ClearRect r a) =
     const a <$> Canvas.clearRect ctx r
   go (Scale sx sy a) =
-    const a <$> Canvas.scale { scaleX: sx, scaleY: sy } ctx
+    const a <$> Canvas.scale ctx { scaleX: sx, scaleY: sy }
   go (Rotate th a) =
-    const a <$> Canvas.rotate th ctx
+    const a <$> Canvas.rotate ctx th
   go (Translate tx ty a) =
-    const a <$> Canvas.translate { translateX: tx, translateY: ty } ctx
+    const a <$> Canvas.translate ctx { translateX: tx, translateY: ty }
   go (Transform tx a) =
-    const a <$> Canvas.transform tx ctx
+    const a <$> Canvas.transform ctx tx
   go (TextAlign k) =
     k <$> Canvas.textAlign ctx
   go (SetTextAlign ta a) =
@@ -315,7 +317,7 @@ interpretGraphics ctx = go where
   go (Font k) =
     k <$> Canvas.font ctx
   go (SetFont f a) =
-    const a <$> Canvas.setFont f ctx
+    const a <$> Canvas.setFont ctx f
   go (FillText s x y a) =
     const a <$> Canvas.fillText ctx s x y
   go (StrokeText s x y a) =
